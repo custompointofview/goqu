@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/pterm/pterm"
 )
 
 const (
@@ -18,7 +20,7 @@ type QuoteGarden struct {
 	HTTPClient *http.Client
 }
 
-type QCOptions struct {
+type qgOptions struct {
 	author string
 	genre  string
 	query  string
@@ -33,6 +35,20 @@ func NewQuoteGarden() *QuoteGarden {
 			Timeout: time.Minute,
 		},
 	}
+}
+
+func (qg *QuoteGarden) RandomQuote(ctx context.Context) (*Quote, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/quotes/random", qg.BaseURL), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+
+	res := &QGQuote{}
+	if err := qg.sendRequest(req, res); err != nil {
+		return nil, err
+	}
+	return res.Data[0], nil
 }
 
 func (qg *QuoteGarden) AllGenres(ctx context.Context) ([]string, error) {
@@ -52,14 +68,40 @@ func (qg *QuoteGarden) AllGenres(ctx context.Context) ([]string, error) {
 	return res.Data, nil
 }
 
-func (c *QuoteGarden) sendRequest(req *http.Request, v interface{}) error {
+func (qg *QuoteGarden) AllAuthors(ctx context.Context) ([]string, error) {
+	limit := 100
+	page := 1
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/authors?limit=%d&page=%d", qg.BaseURL, limit, page), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+
+	res := &QGAuthors{}
+	if err := qg.sendRequest(req, res); err != nil {
+		return nil, err
+	}
+	return res.Data, nil
+}
+
+func (c *QuoteGarden) sendRequest(req *http.Request, v interface{}) (retErr error) {
+	spinnerSuccess, _ := pterm.DefaultSpinner.Start("Sending request...")
+	defer func() {
+		if retErr != nil {
+			spinnerSuccess.Fail()
+			return
+		}
+		spinnerSuccess.Success()
+	}()
+
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept", "application/json; charset=utf-8")
 	// req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
 
 	res, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		return retErr
 	}
 
 	defer res.Body.Close()
@@ -68,8 +110,8 @@ func (c *QuoteGarden) sendRequest(req *http.Request, v interface{}) error {
 		return fmt.Errorf("unknown error, status code: %d", res.StatusCode)
 	}
 
-	if err = json.NewDecoder(res.Body).Decode(&v); err != nil {
-		return err
+	if retErr = json.NewDecoder(res.Body).Decode(&v); retErr != nil {
+		return retErr
 	}
 
 	return nil
