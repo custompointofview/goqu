@@ -20,14 +20,6 @@ type QuoteGarden struct {
 	HTTPClient *http.Client
 }
 
-type qgOptions struct {
-	author string
-	genre  string
-	query  string
-	page   int32
-	limit  int32
-}
-
 func NewQuoteGarden() *QuoteGarden {
 	return &QuoteGarden{
 		BaseURL: QUOTEGARDEN_URI,
@@ -44,18 +36,15 @@ func (qg *QuoteGarden) RandomQuote(ctx context.Context) (*Quote, error) {
 	}
 	req = req.WithContext(ctx)
 
-	res := &QGQuote{}
+	res := &QGQuotes{}
 	if err := qg.sendRequest(req, res); err != nil {
 		return nil, err
 	}
-	return res.Data[0], nil
+	return res.Data[0].ToQuote(), nil
 }
 
 func (qg *QuoteGarden) AllGenres(ctx context.Context) ([]string, error) {
-	limit := 100
-	page := 1
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/genres?limit=%d&page=%d", qg.BaseURL, limit, page), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/genres", qg.BaseURL), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +74,46 @@ func (qg *QuoteGarden) AllAuthors(ctx context.Context) ([]string, error) {
 	return res.Data, nil
 }
 
-func (c *QuoteGarden) sendRequest(req *http.Request, v interface{}) (retErr error) {
+func (qg *QuoteGarden) Quotes(ctx context.Context, options *QueryOptions) ([]*Quote, *Pagination, error) {
+	req, err := http.NewRequest("GET",
+		fmt.Sprintf("%s/quotes?%s", qg.BaseURL, options.Sprint()),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	req = req.WithContext(ctx)
+	res := &QGQuotes{}
+	if err := qg.sendRequest(req, res); err != nil {
+		return nil, nil, err
+	}
+	return res.DataToQuotes(), &res.Pagination, nil
+}
+
+func (qg *QuoteGarden) PrintQuotesPage(title string, quotes []*Quote) {
+	maxNumColumns := 3
+	panels := make(pterm.Panels, 9)
+
+	row := 0
+	col := 0
+	panels[row] = make([]pterm.Panel, maxNumColumns)
+	for _, q := range quotes {
+		p := pterm.DefaultBox.Sprint(q.Sprint())
+		panel := pterm.Panel{Data: p}
+
+		panels[row][col] = panel
+		col += 1
+		if col >= maxNumColumns {
+			row += 1
+			col = 0
+			panels[row] = make([]pterm.Panel, maxNumColumns)
+		}
+	}
+
+	pRender, _ := pterm.DefaultPanel.WithPanels(panels).Srender()
+	pterm.DefaultBox.WithTitle(title).WithTitleBottomRight().WithRightPadding(0).WithBottomPadding(0).Println(pRender)
+}
+
+func (qg *QuoteGarden) sendRequest(req *http.Request, v interface{}) (retErr error) {
 	spinnerSuccess, _ := pterm.DefaultSpinner.Start("Sending request...")
 	defer func() {
 		if retErr != nil {
@@ -99,9 +127,9 @@ func (c *QuoteGarden) sendRequest(req *http.Request, v interface{}) (retErr erro
 	req.Header.Set("Accept", "application/json; charset=utf-8")
 	// req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
 
-	res, err := c.HTTPClient.Do(req)
+	res, err := qg.HTTPClient.Do(req)
 	if err != nil {
-		return retErr
+		return err
 	}
 
 	defer res.Body.Close()

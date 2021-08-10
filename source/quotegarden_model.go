@@ -16,24 +16,39 @@ type QGAuthors struct {
 	Data        []string   `json:"data"`
 }
 
-type QGQuote struct {
+type QGQuotes struct {
 	StatusCode  int        `json:"statusCode"`
 	Message     string     `json:"message"`
 	Pagination  Pagination `json:"pagination"`
 	TotalQuotes int        `json:"totalQuotes"`
-	Data        []*Quote   `json:"data"`
+	Data        []*QGQuote `json:"data"`
+}
+
+func (qgq *QGQuotes) DataToQuotes() (retQ []*Quote) {
+	for _, q := range qgq.Data {
+		retQ = append(retQ, q.ToQuote())
+	}
+	return retQ
 }
 
 type Pagination struct {
 	CurrentPage int `json:"currentPage"`
 	NextPage    int `json:"nextPage"`
-	TotalPage   int `json:"totalPages"`
+	TotalPages  int `json:"totalPages"`
 }
 
-// TODO: quote needs to be generic
-type Quote struct {
+type QGQuote struct {
 	ID          string `json:"_id"`
 	QuoteText   string `json:"quoteText"`
 	QuoteAuthor string `json:"quoteAuthor"`
 	QuoteGenre  string `json:"quoteGenre"`
+}
+
+func (qgq *QGQuote) ToQuote() *Quote {
+	return &Quote{
+		ID:     qgq.ID,
+		Author: qgq.QuoteAuthor,
+		Text:   qgq.QuoteText,
+		Genre:  qgq.QuoteGenre,
+	}
 }
