@@ -3,6 +3,10 @@ package interfaces
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/manifoldco/promptui"
 	"github.com/pterm/pterm"
@@ -42,7 +46,8 @@ func (t *Term) Run(ctx context.Context) {
 }
 
 func (t *Term) SelectCommand(ctx context.Context) error {
-	var cmdOptions = []string{"Get Random Quote", "Get Based On Genres", "Get Based On Authors", "Exit"}
+	var cmdOptions = []string{"Get Random Quote", "Get Based On Genres",
+		"Get Based On Authors", "Search...", "Exit"}
 	prompt := promptui.Select{
 		Label: "Command",
 		Items: cmdOptions,
@@ -63,18 +68,23 @@ func (t *Term) SelectCommand(ctx context.Context) error {
 
 	switch result {
 	case cmdOptions[0]:
-		pterm.DefaultSection.Println("Getting Random Quote...")
+		pterm.DefaultSection.Println("Retrieving Random Quote...")
 		if err := t.RandomQuote(ctx); err != nil {
 			return err
 		}
 	case cmdOptions[1]:
-		pterm.DefaultSection.Println("Getting Quotes Based On Genres...")
+		pterm.DefaultSection.Println("Retrieving Quotes Based On Genres...")
 		if err := t.SelectGenre(ctx); err != nil {
 			return err
 		}
 	case cmdOptions[2]:
-		pterm.DefaultSection.Println("Getting Quotes Based On Authors...")
+		pterm.DefaultSection.Println("Retrieving Quotes Based On Authors...")
 		if err := t.SelectAuthor(ctx); err != nil {
+			return err
+		}
+	case cmdOptions[3]:
+		pterm.DefaultSection.Println("Retrieving Quotes Based On Input...")
+		if err := t.PromptInput(ctx, nil); err != nil {
 			return err
 		}
 	case "Exit":
@@ -85,10 +95,9 @@ func (t *Term) SelectCommand(ctx context.Context) error {
 }
 
 func (t *Term) RandomQuote(ctx context.Context) error {
-	// make HTTP request
 	quote, err := t.source.RandomQuote(ctx)
 	if err != nil {
-		return fmt.Errorf("could not get categories from source: %v", err)
+		return fmt.Errorf("could not get random quote from source: %v", err)
 	}
 	quote.Print()
 	return nil
@@ -101,6 +110,7 @@ func (t *Term) SelectGenre(ctx context.Context) error {
 		return fmt.Errorf("could not get categories from source: %v", err)
 	}
 
+	// TODO: refactor the things below
 	// select from the response genres
 	prompt := promptui.Select{
 		Label: "Select Genre",
@@ -111,7 +121,7 @@ func (t *Term) SelectGenre(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("prompt failed: %v", err)
 	}
-
+	// create query options & go further
 	qo := &source.QueryOptions{
 		Genre: selection,
 	}
@@ -126,6 +136,7 @@ func (t *Term) SelectAuthor(ctx context.Context) error {
 		return fmt.Errorf("could not get categories from source: %v", err)
 	}
 
+	// TODO: refactor the things below
 	// select from the response genres
 	prompt := promptui.Select{
 		Label: "Select Category",
@@ -136,7 +147,7 @@ func (t *Term) SelectAuthor(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("prompt failed: %v", err)
 	}
-
+	// create query options & go further
 	qo := &source.QueryOptions{
 		Author: selection,
 	}
@@ -144,10 +155,53 @@ func (t *Term) SelectAuthor(ctx context.Context) error {
 	return nil
 }
 
+func (t *Term) PromptInput(ctx context.Context, qo *source.QueryOptions) error {
+	validate := func(input string) error {
+		if input == "" {
+			return fmt.Errorf("search must not be empty")
+		}
+		space := regexp.MustCompile(`\s+`)
+		if space.Match([]byte(input)) {
+			return fmt.Errorf("search must contain a single term")
+		}
+		return nil
+	}
+
+	templates := &promptui.PromptTemplates{
+		Prompt:  "{{ . }} ",
+		Valid:   "{{ . | green }} ",
+		Invalid: "{{ . | red }} ",
+		Success: "{{ . | bold }} ",
+	}
+
+	prompt := promptui.Prompt{
+		Label:     "Search:",
+		Templates: templates,
+		Validate:  validate,
+	}
+
+	selection, err := prompt.Run()
+	if err != nil {
+		return fmt.Errorf("prompt failed %v", err)
+	}
+
+	// create query options & go further
+	qoTemp := &source.QueryOptions{
+		Query: selection,
+	}
+	if qo != nil {
+		qoTemp.Author = qo.Author
+		qoTemp.Genre = qo.Genre
+	}
+	t.GoFurther(ctx, qoTemp)
+
+	return nil
+}
+
 func (t *Term) GoFurther(ctx context.Context, qo *source.QueryOptions) error {
 	for {
 		t.printSection(qo)
-		itemSelection := []string{"Show All", "Show Random Quote", "Exit"}
+		itemSelection := []string{"Show All", "Show Random Quote", "Search...", "Exit"}
 		prompt := promptui.Select{
 			Label: "Select Action:",
 			Items: itemSelection,
@@ -161,15 +215,20 @@ func (t *Term) GoFurther(ctx context.Context, qo *source.QueryOptions) error {
 		switch result {
 		case itemSelection[0]:
 			if err := t.ShowAll(ctx, qo); err != nil {
-				return nil
+				return err
 			}
 		case itemSelection[1]:
-			// TODO: implement get random quote from selection
+			if err := t.ShowRandom(ctx, qo); err != nil {
+				return err
+			}
+		case itemSelection[2]:
+			if err := t.PromptInput(ctx, qo); err != nil {
+				return err
+			}
 		case "Exit":
 			return nil
 		}
 	}
-
 }
 
 func (t *Term) ShowAll(ctx context.Context, qo *source.QueryOptions) error {
@@ -182,6 +241,7 @@ func (t *Term) ShowAll(ctx context.Context, qo *source.QueryOptions) error {
 			Page:   int32(pageSelection),
 			Genre:  qo.Genre,
 			Author: qo.Author,
+			Query:  qo.Query,
 		}
 		quotes, pag, err := t.source.Quotes(ctx, opt)
 		if err != nil {
@@ -219,11 +279,50 @@ func (t *Term) ShowAll(ctx context.Context, qo *source.QueryOptions) error {
 
 }
 
+func (t *Term) ShowRandom(ctx context.Context, qo *source.QueryOptions) error {
+	pageSelection := 1
+	for {
+		// query based on selection
+		opt := &source.QueryOptions{
+			Limit:  9,
+			Page:   int32(pageSelection),
+			Genre:  qo.Genre,
+			Author: qo.Author,
+			Query:  qo.Query,
+		}
+		quotes, pag, err := t.source.Quotes(ctx, opt)
+		if err != nil {
+			return fmt.Errorf("quotes query failed: %v", err)
+		}
+		// get random quote
+		rand.Seed(time.Now().Unix())
+		randQ := quotes[rand.Intn(len(quotes))]
+		randQ.Print()
+		// change page
+		pageSelection = rand.Intn(pag.TotalPages) + 1
+
+		// after menu
+		itemSelection := []string{"Get Another", "Exit"}
+		prompt := promptui.Select{
+			Label: "Select Action:",
+			Items: itemSelection,
+		}
+
+		_, result, err := prompt.Run()
+		if err != nil {
+			return fmt.Errorf("prompt failed: %v", err)
+		}
+		switch result {
+		case itemSelection[0]:
+			// just continue with another request
+		case "Exit":
+			return nil
+		}
+	}
+}
+
 func (t *Term) printSection(qo *source.QueryOptions) {
 	// TODO: further refactoring needed
-	if qo.Genre != "" {
-		pterm.DefaultSection.Printf("Selected option: %s", qo.Genre)
-	} else {
-		pterm.DefaultSection.Printf("Selected option: %s", qo.Author)
-	}
+	options := []string{qo.Genre, qo.Author, qo.Query}
+	pterm.DefaultSection.Printf("Selected option: %s", strings.Join(options, " "))
 }

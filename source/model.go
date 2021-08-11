@@ -50,25 +50,19 @@ func (q *Quote) Sprint() string {
 }
 
 func (q *Quote) Print() {
-	// prefPrint := pterm.PrefixPrinter{
-	// 	MessageStyle: &pterm.ThemeDefault.InfoMessageStyle,
-	// 	Prefix: pterm.Prefix{
-	// 		Style: &pterm.ThemeDefault.InfoPrefixStyle,
-	// 		Text:  strings.ToUpper(q.Genre),
-	// 	},
-	// }
+	header := q.header()
+	header.Println(q.Sprint())
+}
 
-	// // TODO: this is good, but not good enough, long text is not multiline - needs separation
-	// pterm.DefaultParagraph.WithMaxWidth(120).Println(prefPrint.Sprintf("%s", q.Text))
-	// pterm.DefaultParagraph.WithMaxWidth(120).Printf("-- %s\n", pterm.LightRed(q.Author))
-	// pterm.Println()
+func (q *Quote) HSprint() string {
+	header := q.header()
+	return header.Sprintln(q.Sprint())
+}
 
-	newHeader := pterm.HeaderPrinter{
+func (q *Quote) header() pterm.HeaderPrinter {
+	return pterm.HeaderPrinter{
 		TextStyle:       pterm.NewStyle(pterm.FgWhite),
 		BackgroundStyle: pterm.NewStyle(pterm.BgGray),
-		Margin:          5,
+		Margin:          1,
 	}
-
-	// Print header.
-	newHeader.Println(q.Sprint())
 }

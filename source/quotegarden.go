@@ -97,7 +97,8 @@ func (qg *QuoteGarden) PrintQuotesPage(title string, quotes []*Quote) {
 	col := 0
 	panels[row] = make([]pterm.Panel, maxNumColumns)
 	for _, q := range quotes {
-		p := pterm.DefaultBox.Sprint(q.Sprint())
+		// p := pterm.DefaultBox.Sprint(q.Sprint())
+		p := q.HSprint()
 		panel := pterm.Panel{Data: p}
 
 		panels[row][col] = panel
@@ -109,8 +110,10 @@ func (qg *QuoteGarden) PrintQuotesPage(title string, quotes []*Quote) {
 		}
 	}
 
-	pRender, _ := pterm.DefaultPanel.WithPanels(panels).Srender()
-	pterm.DefaultBox.WithTitle(title).WithTitleBottomRight().WithRightPadding(0).WithBottomPadding(0).Println(pRender)
+	// pRender, _ := pterm.DefaultPanel.WithPanels(panels).Srender()
+	// pterm.DefaultBox.WithTitle(title).WithTitleBottomRight().Println(pRender)
+	pterm.DefaultPanel.WithPanels(panels).WithBottomPadding(1).WithPadding(1).WithSameColumnWidth().Render()
+	pterm.DefaultHeader.Println(title)
 }
 
 func (qg *QuoteGarden) sendRequest(req *http.Request, v interface{}) (retErr error) {
