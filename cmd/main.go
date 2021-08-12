@@ -7,20 +7,10 @@ import (
 )
 
 func main() {
+	// create application context
 	ctx := context.Background()
 
+	// run
 	t := interfaces.NewTerm()
-
-	go func() {
-		t.Run(ctx)
-	}()
-
-	select {
-	case err := <-t.Error:
-		panic(err)
-	case <-t.Done:
-		return
-	case <-ctx.Done():
-		return
-	}
+	t.Run(ctx)
 }
