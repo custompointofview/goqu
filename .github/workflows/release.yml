@@ -14,6 +14,9 @@ jobs:
             matrix:
                 goos: [linux, windows, darwin]
                 goarch: ["386", amd64]
+                exclude:
+                    - goarch: "386"
+                      goos: darwin
         steps:
             - uses: actions/checkout@v2
             - uses: wangyoucao577/go-release-action@v1.19
@@ -21,7 +24,7 @@ jobs:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   goos: ${{ matrix.goos }}
                   goarch: ${{ matrix.goarch }}
-                  goversion: "https://dl.google.com/go/go1.13.1.linux-amd64.tar.gz"
+                  goversion: "https://dl.google.com/go/go1.16.6.linux-amd64.tar.gz"
                   project_path: "./cmd/"
                   binary_name: "goqu"
                   asset_name: "goqu-${{ env.BUILD_TIME }}-${{ matrix.goos }}-${{ matrix.goarch }}"
