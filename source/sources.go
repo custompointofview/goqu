@@ -9,5 +9,5 @@ type Sources interface {
 	AllGenres(ctx context.Context) ([]string, error)
 	AllAuthors(ctx context.Context) ([]string, error)
 	Quotes(ctx context.Context, options *QueryOptions) ([]*Quote, *Pagination, error)
-	PrintQuotesPage(title string, quotes []*Quote)
+	PrintQuotesPage(title string, quotes []*Quote, columns int)
 }

@@ -89,13 +89,12 @@ func (qg *QuoteGarden) Quotes(ctx context.Context, options *QueryOptions) ([]*Qu
 	return res.DataToQuotes(), &res.Pagination, nil
 }
 
-func (qg *QuoteGarden) PrintQuotesPage(title string, quotes []*Quote) {
-	maxNumColumns := 3
-	panels := make(pterm.Panels, 9)
+func (qg *QuoteGarden) PrintQuotesPage(title string, quotes []*Quote, columns int) {
+	panels := make(pterm.Panels, 100)
 
 	row := 0
 	col := 0
-	panels[row] = make([]pterm.Panel, maxNumColumns)
+	panels[row] = make([]pterm.Panel, columns)
 	for _, q := range quotes {
 		// p := pterm.DefaultBox.Sprint(q.Sprint())
 		p := q.HSprint()
@@ -103,10 +102,10 @@ func (qg *QuoteGarden) PrintQuotesPage(title string, quotes []*Quote) {
 
 		panels[row][col] = panel
 		col += 1
-		if col >= maxNumColumns {
+		if col >= columns {
 			row += 1
 			col = 0
-			panels[row] = make([]pterm.Panel, maxNumColumns)
+			panels[row] = make([]pterm.Panel, columns)
 		}
 	}
 

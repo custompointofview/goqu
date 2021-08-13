@@ -20,3 +20,6 @@
 # vendor/
 .vscode
 .history
+
+# Recording files
+*recording.yml

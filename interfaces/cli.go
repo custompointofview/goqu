@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -399,7 +400,7 @@ func (t *Term) showAllQuotes(ctx context.Context, qo *source.QueryOptions) {
 			return
 		}
 		title := fmt.Sprintf("PAGE %d/%d", pageSelection, pag.TotalPages)
-		t.source.PrintQuotesPage(title, quotes)
+		t.source.PrintQuotesPage(title, quotes, int(math.Sqrt(float64(t.sourceLimit))))
 
 		itemSelection := []string{"Next Page", "Previous Page", GO_BACK}
 		prompt := promptui.Select{
