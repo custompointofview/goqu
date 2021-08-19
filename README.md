@@ -1,12 +1,12 @@
 # GoQu
 
-A Golang CLI tool in search of quotes Quotes
+A Golang CLI tool in search of quotes
 
 ![Alt Text](./assets/profile/goku.gif)
 
 ## Goal
 
-I wanted a simple CLI tool to get quotes based on preferences.
+I wanted a simple CLI tool to retrieve quotes based on preferences.
 
 ## Current Sources
 
@@ -20,6 +20,14 @@ Awesome packages used for CLI interactions and rendering:
 
 -   [PTerm](http://github.com/pterm/pterm)
 -   [PromptUI](github.com/manifoldco/promptui)
+
+## Execution
+
+- Download application: [GoQu Releases](https://github.com/custompointofview/goqu/releases)
+- Extract `.zip` if needed
+- Open terminal 
+- Navigate to the downloaded/extracted directory
+- Execute `./goqu` 
 
 ## Notes on implementation...
 
